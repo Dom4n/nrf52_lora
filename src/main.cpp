@@ -1,3 +1,6 @@
+// ADAPTED FROM
+// https://github.dev/beegee-tokyo/SX126x-Arduino/tree/master/examples/PingPong
+
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h> // for Serial
 
