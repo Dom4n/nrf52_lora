@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h> // for Serial
+#include <Adafruit_SPIFlash.h>
 
 #include <SX126x-Arduino.h>
 #include <SPI.h>
@@ -54,10 +55,18 @@ void OnRxTimeout(void);
 void OnRxError(void);
 void OnCadDone(bool cadResult);
 
+Adafruit_FlashTransport_QSPI flashTransport;
+
 void setup()
 {
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
+  NRF_POWER->DCDCEN = 1;
+  flashTransport.begin();
+  flashTransport.runCommand(0xB9);  // enter deep power-down mode
+  delayMicroseconds(5);             // tDP=3uS
+  flashTransport.end();
+
+  // pinMode(LED_BUILTIN, OUTPUT);
+  // digitalWrite(LED_BUILTIN, LOW);
 
   // pinMode(RADIO_RXEN, OUTPUT);
   // digitalWrite(RADIO_RXEN, HIGH);
@@ -79,9 +88,14 @@ void setup()
   hwConfig.USE_LDO = false;                 // Set to 'true' if you want to use the LDO. Set to 'false' if you want to use the DC/DC converter
 
   Serial.begin(57600);
+  int serial_retries = 10;
   while (!Serial)
   {
-    delay(20);
+    delay(100);
+    serial_retries--;
+    if (serial_retries <= 0) {
+      break;
+    }
   };
 
   dbgPrintVersion();
@@ -109,15 +123,17 @@ void setup()
                     LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
                     0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
   // Start LoRa
-  Serial.println("Starting Radio.Rx");
+  // Serial.println("Starting Radio.Rx");
   // Radio.Rx(RX_TIMEOUT_VALUE);
-  SX126xSetRx(RX_TIMEOUT_VALUE);
   // Radio.Standby();
   // Radio.SetCadParams(LORA_CAD_08_SYMBOL, LORA_SPREADING_FACTOR + 13, 10, LORA_CAD_ONLY, 0);
   // cadTime = millis();
   // Radio.StartCad();
 
   Serial.println("setup done");
+  // Radio.Rx(RX_TIMEOUT_VALUE);
+  // Radio.IrqProcessAfterDeepSleep();
+  // delay(200);
 }
 
 void loop()
@@ -169,11 +185,15 @@ void loop()
 
   // Serial.println(SX126xGetIrqStatus());
   // Radio.IrqProcess();
-  delay(3500);
+  Radio.SetRxDutyCycle(1280, 128);
+  delay(1000);
   Radio.IrqProcessAfterDeepSleep();
-  yield();
+  delay(500);
+  Radio.Standby();
   // SX126xSetRx(RX_TIMEOUT_VALUE);
-  Radio.Rx(RX_TIMEOUT_VALUE);
+  delay(1500);
+  Radio.Sleep();
+  delay(500);
 }
 
 void read_registers(uint16_t start_addr, uint16_t end_addr)
@@ -209,7 +229,7 @@ void read_registers(uint16_t start_addr, uint16_t end_addr)
 void OnTxDone(void)
 {
   Serial.println("OnTxDone");
-  Radio.Rx(RX_TIMEOUT_VALUE);
+  // Radio.Rx(RX_TIMEOUT_VALUE);
   // SX126xSetRx(RX_TIMEOUT_VALUE);
 }
 
